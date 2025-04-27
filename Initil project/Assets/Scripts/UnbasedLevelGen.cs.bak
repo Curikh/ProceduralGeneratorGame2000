@@ -1,0 +1,214 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+
+public class UnbasedLevelGen : MonoBehaviour {
+	
+	enum Direction{
+		Top = 1,
+		Right = 2,
+		Down = 4,
+		Left = 8,
+		Null = 16
+	}
+	
+
+	
+	
+	private class Room {
+		private int[] room_pos;
+		public bool[] connections;
+	
+		public Room(int[] room_pos) {
+			this.room_pos = room_pos;
+			this.connections = new bool[4] {false, false, false, false};
+		
+		}
+		public void SetOpenPath(Direction path) {
+			switch (path) {
+				case Direction.Top:
+					this.connections[0] = true;
+					break;
+				case Direction.Right:
+					this.connections[1] = true;
+					break;
+				case Direction.Down:
+					this.connections[3] = true;
+					break;
+				case Direction.Left:
+					this.connections[3] = true;
+					break;
+			}
+		}
+			public string IntsToString(int[] ints){
+		string result = "["; 
+		for (int i = 0; i < ints.Length; i++){
+			result = result + ints[i].ToString() + ",";
+		}
+		result = result + "]";
+		return result;
+	}
+	public string BoolsToString(bool[] ints){
+		string result = "["; 
+		for (int i = 0; i < ints.Length; i++){
+			result = result + ints[i].ToString() + ",";
+		}
+		result = result + "]";
+		return result;
+	}
+		
+		public string ToString() {
+			return IntsToString(this.room_pos) + '\t' + BoolsToString(this.connections) ;
+		}
+		
+	}
+	
+	
+	private class Map {
+		private int[] restrictions;
+		private bool[][] has_room;
+		private Room[][] room_map;
+		
+		public Map(int[] restrictions){
+			this.restrictions = new int[2] { restrictions[0] -1, restrictions[1] -1};
+			this.room_map = new Room[restrictions[0]][];
+			this.has_room = new bool[restrictions[0]][];
+			for (int i = 0; i < restrictions[0]; i++){
+				Room[] row = new Room[restrictions[1]];
+				this.room_map[i] = row;
+			}
+			for (int i = 0; i < restrictions[0]; i++){
+				bool[] row = new bool[restrictions[1]];
+				for (int j = 0; j < restrictions[1]; j++){
+					row[j] = false;
+				}
+				this.has_room[i] = row;
+				
+				
+			}
+				
+		}
+		
+		public bool HasRoom(int[] index) {
+			if (ValidatePosition(index)){
+				return has_room[index[0]][index[1]];
+			};
+			return false;
+				
+		
+		}
+		public Room GetRoom(int[] index) {
+			return room_map[index[0]][index[1]];
+		}
+		
+		public void SetRoom(int[] index, Room room) {
+			this.room_map[index[0]][index[1]] = room;
+			this.has_room[index[0]][index[1]] = true;
+		}
+		
+		public bool ValidatePosition(int[] position) {
+			bool is_in_bounds_x = position[0] >= 0 && position[0] <= this.restrictions[0];
+			bool is_in_bounds_y = position[1] >= 0 && position[1] <= this.restrictions[1];
+			return is_in_bounds_x && is_in_bounds_y;
+		}
+		
+		public Room[][] GetMap(){
+			return this.room_map;
+		}
+	}
+	
+	private Direction InvertDirection(Direction direction) {
+		switch (direction) {
+			case Direction.Top: return Direction.Down;
+			case Direction.Left: return Direction.Right;
+			case Direction.Down: return Direction.Top;
+			case Direction.Right: return Direction.Left;
+		} 
+		return Direction.Null;
+	}
+	void Shuffle(int[] a)
+	{
+		// Loops through array
+		for (int i = a.Length-1; i > 0; i--)
+		{
+			// Randomize a number between 0 and i (so that the range decreases each time)
+			int rnd = Random.Range(0,i);
+			
+			// Save the value of the current i, otherwise it'll overright when we swap the values
+			int temp = a[i];
+			
+			// Swap the new and old values
+			a[i] = a[rnd];
+			a[rnd] = temp;
+		}
+		
+		// Print
+		for (int i = 0; i < a.Length; i++)
+		{
+			// Debug.Log (a[i]);
+		}
+	}
+	
+	private bool GenerateConnections(Map map, int[] start_position, Direction path_opened){
+		
+		if (!map.ValidatePosition(start_position)) return false;
+		if (map.HasRoom(start_position)) return false;
+		
+		Room new_room = new Room(start_position);
+		if (path_opened != Direction.Null) new_room.SetOpenPath(path_opened);
+		map.SetRoom(start_position, new_room);
+		int[] check_order = new int[4] {0, 1, 2, 3};
+		Shuffle(check_order);
+		for (int i = 0; i < check_order.Length; i++) {
+			int check_id = check_order[i];
+			int new_x = start_position[0];
+			int new_y = start_position[1];
+			Direction directon_to_open = Direction.Null;
+			switch (check_id) {
+				case 0:
+					new_y--;
+					directon_to_open = Direction.Down;
+					break;
+				case 1:
+					new_x++;
+					directon_to_open= Direction.Left;
+					break;
+				case 2:
+					new_y++;
+					directon_to_open = Direction.Top;
+					break;
+				case 3:
+					new_x--;
+					directon_to_open = Direction.Right;
+					break;
+			}
+			new_room.connections[check_id] = GenerateConnections(map, new int[2] {new_x, new_y}, directon_to_open);
+				
+		};
+		return true;
+		
+	}
+
+
+	// Use this for initialization
+	void Start () {
+	Map map = new Map(new int[2] {4, 4});
+	GenerateConnections(map, new int[2] {0,0}, Direction.Null);
+	Room[][] rooms = map.GetMap();
+	for (int i = 0; i< rooms.Length; i++){
+		Room[] row = rooms[i];
+		for (int j = 0; j < row.Length; j++){
+			Debug.Log(row[j].ToString());
+		}
+	
+	}
+
+		
+	}
+	
+	// Update is called once per frame
+	void Update () {
+		
+	}
+}
